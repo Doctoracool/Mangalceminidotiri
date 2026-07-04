@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Vendor Login</title>
+
+<link rel="stylesheet" href="vendor-login.css">
+
+<!-- Pi SDK (MUST stay here) -->
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
+
+</head>
+
+<body>
+
+<div class="login-container">
+
+  <h2>Vendor Login</h2>
+
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+
+  <button id="loginBtn" onclick="loginVendor()">Login</button>
+
+  <hr>
+
+  <button id="piLoginBtn" onclick="loginWithPi()">
+    Login with Pi Network
+  </button>
+
+  <p id="msg"></p>
+
+</div>
+
+<!-- IMPORTANT: external JS only -->
+<script src="vendor-login.js"></script>
+
+</body>
+</html>
