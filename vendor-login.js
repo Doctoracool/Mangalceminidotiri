@@ -1,25 +1,20 @@
-/* =========================
-   CONFIG
-========================= */
 const API = "https://charcoal-marketplace-1.onrender.com/api";
 
 /* =========================
-   ELEMENT HELPERS
+   HELPERS
 ========================= */
 function getEl(id) {
   return document.getElementById(id);
 }
 
 /* =========================
-   EMAIL LOGIN (VENDOR)
+   EMAIL LOGIN
 ========================= */
 async function loginVendor() {
   const email = getEl("email");
   const password = getEl("password");
   const btn = getEl("loginBtn");
   const msg = getEl("msg");
-
-  if (!email || !password || !btn || !msg) return;
 
   if (!email.value || !password.value) {
     msg.innerText = "Please fill all fields";
@@ -40,7 +35,7 @@ async function loginVendor() {
       })
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
 
     if (!res.ok || !data.token) {
       msg.innerText = data.message || "Login failed";
@@ -48,27 +43,19 @@ async function loginVendor() {
       return;
     }
 
-    // ROLE CHECK
-    if (data.user?.role !== "vendor") {
-      msg.innerText = "Access denied (not vendor)";
-      msg.style.color = "red";
-      return;
-    }
-
-    // CONSISTENT TOKEN STORAGE (IMPORTANT FIX)
-    localStorage.setItem("token", data.token);
+    // FIXED TOKEN NAME (IMPORTANT)
+    localStorage.setItem("vendorToken", data.token);
 
     msg.innerText = "Login successful ✔";
     msg.style.color = "green";
 
     setTimeout(() => {
-      window.location.href = "vendor-dashboard.html";
+      window.location.href = "vendor.html";
     }, 800);
 
   } catch (err) {
-    console.error("Vendor login error:", err);
-    msg.innerText = "Server error. Try again later.";
-    msg.style.color = "red";
+    console.error(err);
+    msg.innerText = "Server error";
   } finally {
     btn.disabled = false;
     btn.innerText = "Login";
@@ -76,18 +63,14 @@ async function loginVendor() {
 }
 
 /* =========================
-   PI LOGIN (PRODUCTION SAFE)
+   PI LOGIN (FIXED - NO HANG)
 ========================= */
-async function loginWithPi() {
+function loginWithPi() {
   const msg = getEl("msg");
   const btn = getEl("piLoginBtn");
 
-  if (!msg || !btn) return;
-
-  // MUST run inside Pi Browser
-  if (typeof window.Pi === "undefined") {
+  if (!window.Pi) {
     msg.innerText = "Pi Browser required";
-    msg.style.color = "red";
     return;
   }
 
@@ -95,79 +78,61 @@ async function loginWithPi() {
   btn.disabled = true;
 
   try {
-    // Safe init (avoid duplicate crash)
-    try {
-      if (typeof Pi.init === "function") {
-        Pi.init({ version: "2.0" });
-      }
-    } catch (e) {}
+    Pi.init({ version: "2.0" });
+  } catch (e) {}
 
-    Pi.authenticate(["username", "payments"], async function (auth) {
-      try {
-        // SAFETY CHECK
-        if (!auth?.accessToken || !auth?.user?.uid) {
-          msg.innerText = "Invalid Pi authentication";
-          btn.disabled = false;
-          return;
-        }
+  const scopes = ["username", "payments"];
 
-        const res = await fetch(`${API}/auth/pi-login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            accessToken: auth.accessToken,
-            uid: auth.user.uid,
-            username: auth.user.username
-          })
-        });
+  Pi.authenticate(scopes, function(auth) {
 
-        const data = await res.json().catch(() => ({}));
+    if (!auth?.accessToken || !auth?.user?.uid) {
+      msg.innerText = "Pi authentication failed";
+      btn.disabled = false;
+      return;
+    }
 
-        if (!res.ok || !data.token) {
-          msg.innerText = data.message || "Pi login failed";
-          btn.disabled = false;
-          return;
-        }
+    fetch(`${API}/auth/pi-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accessToken: auth.accessToken,
+        uid: auth.user.uid,
+        username: auth.user.username
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
 
-        // ROLE CHECK
-        if (data.user?.role !== "vendor") {
-          msg.innerText = "Not a vendor account ❌";
-          btn.disabled = false;
-          return;
-        }
-
-        // CONSISTENT TOKEN STORAGE (CRITICAL FIX)
-        localStorage.setItem("token", data.token);
-
-        msg.innerText = "Login successful ✔";
-
-        window.location.href = "vendor-dashboard.html";
-
-      } catch (err) {
-        console.error(err);
-        msg.innerText = "Server error during Pi login";
-      } finally {
+      if (!data.token) {
+        msg.innerText = data.message || "Login failed";
         btn.disabled = false;
+        return;
       }
+
+      // FIXED TOKEN NAME
+      localStorage.setItem("vendorToken", data.token);
+
+      msg.innerText = "Login successful ✔";
+
+      window.location.href = "vendor.html";
+
+    })
+    .catch(err => {
+      console.error(err);
+      msg.innerText = "Server error";
+      btn.disabled = false;
     });
 
-  } catch (err) {
+  }, function(err) {
     console.error(err);
-    msg.innerText = "Pi authentication error";
+    msg.innerText = "Pi login cancelled or failed";
     btn.disabled = false;
-  }
+  });
 }
 
 /* =========================
-   ENTER KEY SUPPORT (SAFE)
+   ENTER KEY SUPPORT
 ========================= */
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    const active = document.activeElement;
-
-    // only trigger if typing in input fields
-    if (active && active.tagName === "INPUT") {
-      loginVendor();
-    }
-  }
+  if (e.key === "Enter") loginVendor();
 });

@@ -34,8 +34,19 @@
 
 </div>
 
-<!-- IMPORTANT: external JS only -->
-<script src="vendor-login.js"></script>
+  <!-- IMPORTANT: external JS only -->
+<script src="vendor-login.js"></scri>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  if (window.Pi) {
+    Pi.init({ version: "2.0" });
+    console.log("Pi SDK ready");
+  } else {
+    console.log("Pi SDK NOT loaded");
+  }
+});
+  </script>
 
 </body>
 </html>
