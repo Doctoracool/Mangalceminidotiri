@@ -213,7 +213,82 @@ function goToCheckout() {
   });
 }
 
-/* =========================
+async function loginWithPi() {
+  const msg = getEl("msg");
+  const btn = getEl("piLoginBtn");
+
+  if (!msg || !btn) return;
+
+  if (!window.Pi) {
+    msg.innerText = "Open in Pi Browser";
+    msg.style.color = "red";
+    return;
+  }
+
+  btn.disabled = true;
+  msg.innerText = "Connecting to Pi...";
+
+  try {
+    // INIT ONCE SAFELY
+    if (typeof Pi.init === "function") {
+      Pi.init({ version: "2.0" });
+    }
+
+    // ✅ USE PROMISE STYLE (FIXES HANGING)
+    const scopes = ["username", "payments"];
+
+    const auth = await Pi.authenticate(scopes);
+
+    if (!auth || !auth.accessToken || !auth.user) {
+      msg.innerText = "Pi authentication failed";
+      btn.disabled = false;
+      return;
+    }
+
+    msg.innerText = "Verifying account...";
+
+    const res = await fetch(`${API}/auth/pi-login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accessToken: auth.accessToken,
+        uid: auth.user.uid,
+        username: auth.user.username
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.token) {
+      msg.innerText = data.message || "Login failed";
+      btn.disabled = false;
+      return;
+    }
+
+    // ROLE CHECK
+    if (data.user?.role !== "vendor") {
+      msg.innerText = "Not allowed (vendor only)";
+      btn.disabled = false;
+      return;
+    }
+
+    localStorage.setItem("token", data.token);
+
+    msg.innerText = "Login successful ✔";
+
+    setTimeout(() => {
+      window.location.href = "vendor-dashboard.html";
+    }, 800);
+
+  } catch (err) {
+    console.error("Pi login error:", err);
+    msg.innerText = "Pi login failed. Try again.";
+  } finally {
+    btn.disabled = false;
+  }
+}
+/* ==
+=======================
    HELPERS
 ========================= */
 function getImageURL(path) {
