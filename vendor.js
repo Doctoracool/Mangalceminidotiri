@@ -1,4 +1,4 @@
-const API = "https://charcoal-marketplace-1.onrender.com/api";
+const API = "https://charcoal-marketplace-2.onrender.com/api";
 
 /* =========================
    AUTH CHECK (SAFE)
@@ -146,7 +146,7 @@ function getImageURL(path) {
   if (!path) return "placeholder.png";
   if (path.startsWith("http")) return path;
 
-  return "https://charcoal-marketplace-1.onrender.com" + path;
+  return "https://charcoal-marketplace-2.onrender.com" + path;
 }
 
 function escapeHTML(str) {

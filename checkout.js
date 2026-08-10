@@ -1,7 +1,7 @@
 /* =========================
    CONFIG 
 ========================= */
-const API = "https://charcoal-marketplace-1.onrender.com/api";
+const API = "https://charcoal-marketplace-2.onrender.com/api";
 
 /* =========================
    CART SYSTEM
