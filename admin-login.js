@@ -1,10 +1,6 @@
 /* =========================================================
-   CHARCOAL MARKETPLACE - ADMIN LOGIN JS
-========================================================= */
-
-
-/* =========================================================
-   API
+   CHARCOAL MARKETPLACE
+   ADMIN LOGIN
 ========================================================= */
 
 const API =
@@ -21,52 +17,80 @@ function getEl(id) {
 
 
 /* =========================================================
-   PAGE INITIALIZATION
+   PAGE START
 ========================================================= */
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
 
-  initializePi();
+    /*
+      If an admin token already exists,
+      verify it before allowing access.
+    */
 
-});
+    checkExistingAdmin();
+
+  }
+);
 
 
 /* =========================================================
-   PI SDK INITIALIZATION
+   EXISTING ADMIN CHECK
 ========================================================= */
 
-function initializePi() {
+async function checkExistingAdmin() {
 
-  if (!window.Pi) {
-    console.warn("Pi SDK not available.");
+  const token =
+    localStorage.getItem("adminToken");
+
+  if (!token) {
     return;
   }
 
+
   try {
 
-    if (typeof Pi.init === "function") {
+    const response =
+      await fetch(
+        `${API}/admin/me`,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`
+          }
+        }
+      );
 
-      Pi.init({
-        version: "2.0"
-      });
 
-      console.log("Pi SDK initialized.");
+    if (response.ok) {
+
+      window.location.replace(
+        "admin.html"
+      );
+
+    } else {
+
+      localStorage.removeItem(
+        "adminToken"
+      );
 
     }
 
   } catch (error) {
 
-    console.error(
-      "Pi initialization failed:",
+    console.warn(
+      "Existing admin check failed:",
       error
     );
 
   }
+
 }
 
 
 /* =========================================================
-   EMAIL / PASSWORD ADMIN LOGIN
+   EMAIL ADMIN LOGIN
 ========================================================= */
 
 async function login() {
@@ -84,11 +108,6 @@ async function login() {
     getEl("loginBtn");
 
 
-  if (!emailEl || !passwordEl || !msg || !btn) {
-    return;
-  }
-
-
   const email =
     emailEl.value.trim();
 
@@ -96,30 +115,27 @@ async function login() {
     passwordEl.value;
 
 
-  /* =========================
-     VALIDATION
-  ========================= */
-
   if (!email || !password) {
 
     msg.innerText =
-      "Please fill all fields.";
+      "Please enter your email and password.";
 
     return;
+
   }
 
 
   btn.disabled = true;
 
   msg.innerText =
-    "Verifying admin account...";
+    "Verifying administrator account...";
 
 
   try {
 
-    const res =
+    const response =
       await fetch(
-        `${API}/auth/login`,
+        `${API}/auth/admin-login`,
         {
           method: "POST",
 
@@ -128,46 +144,33 @@ async function login() {
               "application/json"
           },
 
-          body:
-            JSON.stringify({
-              email,
-              password
-            })
+          body: JSON.stringify({
+            email,
+            password
+          })
         }
       );
 
 
-    let data;
-
-    try {
-
-      data =
-        await res.json();
-
-    } catch {
-
-      data = {};
-
-    }
+    const data =
+      await response.json()
+        .catch(() => ({}));
 
 
-    /* =========================
-       LOGIN FAILURE
-    ========================= */
-
-    if (!res.ok || !data.token) {
+    if (
+      !response.ok ||
+      !data.success ||
+      !data.token
+    ) {
 
       msg.innerText =
         data.message ||
-        "Invalid login credentials.";
+        "Admin login failed.";
 
       return;
+
     }
 
-
-    /* =========================
-       ADMIN VERIFICATION
-    ========================= */
 
     if (
       !data.user ||
@@ -175,15 +178,16 @@ async function login() {
     ) {
 
       msg.innerText =
-        "Access denied. Admin account required.";
+        "Access denied.";
 
       return;
+
     }
 
 
-    /* =========================
-       SAVE ADMIN TOKEN
-    ========================= */
+    /*
+      Store ONLY the admin JWT.
+    */
 
     localStorage.setItem(
       "adminToken",
@@ -191,32 +195,20 @@ async function login() {
     );
 
 
-    /* Optional user information */
-
-    if (data.user) {
-
-      localStorage.setItem(
-        "adminUser",
-        JSON.stringify(data.user)
-      );
-
-    }
-
-
     msg.innerText =
-      "Admin login successful ✔";
+      "Administrator verified ✔";
 
 
-    /* =========================
-       ADMIN DASHBOARD
-    ========================= */
+    setTimeout(
+      () => {
 
-    setTimeout(() => {
+        window.location.replace(
+          "admin.html"
+        );
 
-      window.location.href =
-        "admin.html";
-
-    }, 700);
+      },
+      500
+    );
 
 
   } catch (error) {
@@ -251,57 +243,32 @@ async function loginWithPi() {
     getEl("piLoginBtn");
 
 
-  if (!msg || !btn) {
-    return;
-  }
-
-
-  /* =========================
-     PI CHECK
-  ========================= */
-
   if (!window.Pi) {
 
     msg.innerText =
-      "Please open Charcoal Marketplace in Pi Browser.";
+      "Please open the marketplace inside Pi Browser.";
 
     return;
+
   }
 
 
   btn.disabled = true;
 
   msg.innerText =
-    "Connecting to Pi...";
+    "Connecting to Pi Network...";
 
 
   try {
 
-    /* =========================
-       INITIALIZE PI
-    ========================= */
+    Pi.init({
+      version: "2.0"
+    });
 
-    if (
-      typeof Pi.init === "function"
-    ) {
-
-      Pi.init({
-        version: "2.0"
-      });
-
-    }
-
-
-    /* =========================
-       AUTHENTICATE
-    ========================= */
 
     const auth =
       await Pi.authenticate(
-        [
-          "username",
-          "payments"
-        ]
+        ["username", "payments"]
       );
 
 
@@ -315,20 +282,17 @@ async function loginWithPi() {
         "Pi authentication failed.";
 
       return;
+
     }
 
 
     msg.innerText =
-      "Verifying admin account...";
+      "Verifying administrator account...";
 
 
-    /* =========================
-       SEND TO BACKEND
-    ========================= */
-
-    const res =
+    const response =
       await fetch(
-        `${API}/auth/pi-login`,
+        `${API}/auth/pi-admin-login`,
         {
           method: "POST",
 
@@ -337,54 +301,35 @@ async function loginWithPi() {
               "application/json"
           },
 
-          body:
-            JSON.stringify({
+          body: JSON.stringify({
 
-              accessToken:
-                auth.accessToken,
+            accessToken:
+              auth.accessToken,
 
-              uid:
-                auth.user.uid,
-
-              username:
-                auth.user.username
-
-            })
+          })
         }
       );
 
 
-    let data;
-
-    try {
-
-      data =
-        await res.json();
-
-    } catch {
-
-      data = {};
-
-    }
+    const data =
+      await response.json()
+        .catch(() => ({}));
 
 
-    /* =========================
-       BACKEND LOGIN FAILURE
-    ========================= */
-
-    if (!res.ok || !data.token) {
+    if (
+      !response.ok ||
+      !data.success ||
+      !data.token
+    ) {
 
       msg.innerText =
         data.message ||
-        "Pi login failed.";
+        "Pi admin login failed.";
 
       return;
+
     }
 
-
-    /* =========================
-       ADMIN ROLE CHECK
-    ========================= */
 
     if (
       !data.user ||
@@ -392,15 +337,12 @@ async function loginWithPi() {
     ) {
 
       msg.innerText =
-        "This Pi account is not an admin.";
+        "This Pi account is not an administrator.";
 
       return;
+
     }
 
-
-    /* =========================
-       SAVE ADMIN SESSION
-    ========================= */
 
     localStorage.setItem(
       "adminToken",
@@ -408,26 +350,20 @@ async function loginWithPi() {
     );
 
 
-    localStorage.setItem(
-      "adminUser",
-      JSON.stringify(data.user)
-    );
-
-
     msg.innerText =
-      "Admin login successful ✔";
+      "Admin verification successful ✔";
 
 
-    /* =========================
-       REDIRECT
-    ========================= */
+    setTimeout(
+      () => {
 
-    setTimeout(() => {
+        window.location.replace(
+          "admin.html"
+        );
 
-      window.location.href =
-        "admin.html";
-
-    }, 700);
+      },
+      500
+    );
 
 
   } catch (error) {
@@ -438,7 +374,7 @@ async function loginWithPi() {
     );
 
     msg.innerText =
-      "Pi authentication failed. Please try again.";
+      "Pi administrator authentication failed.";
 
   } finally {
 
