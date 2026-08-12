@@ -16,7 +16,7 @@ let adminToken =
 
 
 /* =========================================================
-   REDIRECT
+   REDIRECT TO LOGIN
 ========================================================= */
 
 function redirectToLogin() {
@@ -42,15 +42,21 @@ function getHeaders() {
     localStorage.getItem("adminToken");
 
 
-  return {
-
+  const headers = {
     "Content-Type":
-      "application/json",
-
-    Authorization:
-      `Bearer ${adminToken}`
-
+      "application/json"
   };
+
+
+  if (adminToken) {
+
+    headers.Authorization =
+      `Bearer ${adminToken}`;
+
+  }
+
+
+  return headers;
 
 }
 
@@ -66,6 +72,10 @@ async function verifyAdminAccess() {
 
 
   if (!adminToken) {
+
+    console.warn(
+      "No adminToken found."
+    );
 
     redirectToLogin();
 
@@ -86,59 +96,201 @@ async function verifyAdminAccess() {
       );
 
 
+    /*
+      Read the response safely.
+    */
+
+    const data =
+      await response.json()
+        .catch(() => ({}));
+
+
+    console.log(
+      "Admin verification response:",
+      response.status,
+      data
+    );
+
+
+    /*
+      TOKEN INVALID / EXPIRED
+    */
+
     if (
-      response.status === 401 ||
+      response.status === 401
+    ) {
+
+      console.error(
+        "Admin token rejected:",
+        data.message
+      );
+
+      alert(
+        data.message ||
+        "Your administrator session has expired. Please login again."
+      );
+
+      redirectToLogin();
+
+      return false;
+
+    }
+
+
+    /*
+      ADMIN ACCESS DENIED
+    */
+
+    if (
       response.status === 403
     ) {
 
+      console.error(
+        "Admin access denied:",
+        data.message
+      );
+
+      alert(
+        data.message ||
+        "Administrator access denied."
+      );
+
       redirectToLogin();
 
       return false;
 
     }
 
+
+    /*
+      OTHER SERVER ERROR
+    */
 
     if (!response.ok) {
 
-      throw new Error(
-        "Admin verification failed"
+      console.error(
+        "Admin verification HTTP error:",
+        response.status,
+        data
       );
+
+      alert(
+        data.message ||
+        `Administrator verification failed. Server returned ${response.status}.`
+      );
+
+      return false;
 
     }
 
 
-    const data =
-      await response.json();
-
+    /*
+      VERIFY RESPONSE STRUCTURE
+    */
 
     if (
       !data.success ||
-      !data.admin ||
-      data.admin.role !== "admin"
+      !data.admin
     ) {
+
+      console.error(
+        "Invalid admin verification response:",
+        data
+      );
+
+      alert(
+        data.message ||
+        "Invalid administrator verification response."
+      );
 
       redirectToLogin();
 
       return false;
 
     }
+
+
+    /*
+      VERIFY ROLE
+    */
+
+    if (
+      data.admin.role !== "admin"
+    ) {
+
+      console.error(
+        "Wrong administrator role:",
+        data.admin.role
+      );
+
+      alert(
+        "This account does not have administrator privileges."
+      );
+
+      redirectToLogin();
+
+      return false;
+
+    }
+
+
+    /*
+      VERIFY ACCOUNT STATUS
+    */
+
+    if (
+      data.admin.status !== "approved"
+    ) {
+
+      console.error(
+        "Administrator account is not approved:",
+        data.admin.status
+      );
+
+      alert(
+        `Administrator account status is "${data.admin.status}". Account must be approved.`
+      );
+
+      redirectToLogin();
+
+      return false;
+
+    }
+
+
+    /*
+      SUCCESS
+    */
+
+    console.log(
+      "✅ Administrator verified:",
+      data.admin
+    );
+
+
+    /*
+      Store useful admin information
+      for the dashboard.
+    */
+
+    window.currentAdmin =
+      data.admin;
 
 
     return true;
 
-
   } catch (error) {
 
     console.error(
-      "Admin verification error:",
+      "Admin verification network error:",
       error
     );
 
+
     alert(
-      "Unable to verify administrator access."
+      "Unable to connect to the administrator server."
     );
 
-    redirectToLogin();
 
     return false;
 
@@ -160,12 +312,14 @@ document.addEventListener(
 
 
     if (!authorized) {
+
       return;
+
     }
 
 
     console.log(
-      "✅ Administrator verified"
+      "✅ Administrator dashboard authorized"
     );
 
 
@@ -236,15 +390,26 @@ async function loadDashboard() {
       await fetch(
         `${API}/admin/dashboard`,
         {
+          method: "GET",
           headers: getHeaders()
         }
       );
+
+
+    const data =
+      await response.json()
+        .catch(() => ({}));
 
 
     if (
       response.status === 401 ||
       response.status === 403
     ) {
+
+      alert(
+        data.message ||
+        "Administrator authorization failed."
+      );
 
       redirectToLogin();
 
@@ -256,20 +421,22 @@ async function loadDashboard() {
     if (!response.ok) {
 
       throw new Error(
+        data.message ||
         "Dashboard request failed"
       );
 
     }
 
 
-    const data =
-      await response.json();
-
-
     if (
       !data.success ||
       !data.stats
     ) {
+
+      console.warn(
+        "Invalid dashboard response:",
+        data
+      );
 
       return;
 
@@ -360,7 +527,9 @@ function logout() {
 
 
   if (!confirmed) {
+
     return;
+
   }
 
 
@@ -389,7 +558,9 @@ async function loadPendingProducts() {
 
 
   if (!container) {
+
     return;
+
   }
 
 
@@ -408,10 +579,20 @@ async function loadPendingProducts() {
       );
 
 
+    const data =
+      await response.json()
+        .catch(() => ([]));
+
+
     if (
       response.status === 401 ||
       response.status === 403
     ) {
+
+      alert(
+        data.message ||
+        "Administrator access denied."
+      );
 
       redirectToLogin();
 
@@ -423,14 +604,11 @@ async function loadPendingProducts() {
     if (!response.ok) {
 
       throw new Error(
+        data.message ||
         "Products request failed"
       );
 
     }
-
-
-    const data =
-      await response.json();
 
 
     if (
@@ -489,17 +667,13 @@ async function loadPendingProducts() {
           </h4>
 
           <button
-            onclick="approveProduct(
-              ${product.id}
-            )"
+            onclick="approveProduct(${product.id})"
           >
             Approve
           </button>
 
           <button
-            onclick="rejectProduct(
-              ${product.id}
-            )"
+            onclick="rejectProduct(${product.id})"
           >
             Reject
           </button>
@@ -538,7 +712,9 @@ async function loadPendingVendors() {
 
 
   if (!container) {
+
     return;
+
   }
 
 
@@ -557,10 +733,20 @@ async function loadPendingVendors() {
       );
 
 
+    const data =
+      await response.json()
+        .catch(() => ([]));
+
+
     if (
       response.status === 401 ||
       response.status === 403
     ) {
+
+      alert(
+        data.message ||
+        "Administrator access denied."
+      );
 
       redirectToLogin();
 
@@ -572,14 +758,11 @@ async function loadPendingVendors() {
     if (!response.ok) {
 
       throw new Error(
+        data.message ||
         "Vendor request failed"
       );
 
     }
-
-
-    const data =
-      await response.json();
 
 
     if (
@@ -614,26 +797,38 @@ async function loadPendingVendors() {
           </p>
 
           <p>
+            Pi Username:
+            ${escapeHTML(
+              vendor.pi_username || "N/A"
+            )}
+          </p>
+
+          <p>
+            Business:
+            ${escapeHTML(
+              vendor.business_name || "N/A"
+            )}
+          </p>
+
+          <p>
             Applied:
-            ${vendor.created_at
-              ? new Date(
-                  vendor.created_at
-                ).toLocaleDateString()
-              : "Unknown"}
+            ${
+              vendor.vendor_applied_at
+                ? new Date(
+                    vendor.vendor_applied_at
+                  ).toLocaleDateString()
+                : "Unknown"
+            }
           </p>
 
           <button
-            onclick="approveVendor(
-              ${vendor.id}
-            )"
+            onclick="approveVendor(${vendor.id})"
           >
             Approve
           </button>
 
           <button
-            onclick="rejectVendor(
-              ${vendor.id}
-            )"
+            onclick="rejectVendor(${vendor.id})"
           >
             Reject
           </button>
@@ -670,7 +865,9 @@ async function approveProduct(id) {
       "Approve this product?"
     )
   ) {
+
     return;
+
   }
 
 
@@ -686,20 +883,26 @@ async function approveProduct(id) {
       );
 
 
+    const data =
+      await response.json()
+        .catch(() => ({}));
+
+
     if (
       response.status === 401 ||
       response.status === 403
     ) {
+
+      alert(
+        data.message ||
+        "Administrator access denied."
+      );
 
       redirectToLogin();
 
       return;
 
     }
-
-
-    const data =
-      await response.json();
 
 
     if (!response.ok) {
@@ -751,7 +954,9 @@ async function rejectProduct(id) {
       "Reject this product?"
     )
   ) {
+
     return;
+
   }
 
 
@@ -767,20 +972,26 @@ async function rejectProduct(id) {
       );
 
 
+    const data =
+      await response.json()
+        .catch(() => ({}));
+
+
     if (
       response.status === 401 ||
       response.status === 403
     ) {
+
+      alert(
+        data.message ||
+        "Administrator access denied."
+      );
 
       redirectToLogin();
 
       return;
 
     }
-
-
-    const data =
-      await response.json();
 
 
     if (!response.ok) {
@@ -832,7 +1043,9 @@ async function approveVendor(id) {
       "Approve this vendor?"
     )
   ) {
+
     return;
+
   }
 
 
@@ -848,20 +1061,26 @@ async function approveVendor(id) {
       );
 
 
+    const data =
+      await response.json()
+        .catch(() => ({}));
+
+
     if (
       response.status === 401 ||
       response.status === 403
     ) {
+
+      alert(
+        data.message ||
+        "Administrator access denied."
+      );
 
       redirectToLogin();
 
       return;
 
     }
-
-
-    const data =
-      await response.json();
 
 
     if (!response.ok) {
@@ -908,12 +1127,19 @@ async function approveVendor(id) {
 
 async function rejectVendor(id) {
 
+  const reason =
+    prompt(
+      "Enter rejection reason:",
+      "Vendor application rejected by Admin"
+    );
+
+
   if (
-    !confirm(
-      "Reject this vendor?"
-    )
+    reason === null
   ) {
+
     return;
+
   }
 
 
@@ -924,9 +1150,19 @@ async function rejectVendor(id) {
         `${API}/admin/vendors/reject/${id}`,
         {
           method: "POST",
-          headers: getHeaders()
+
+          headers: getHeaders(),
+
+          body: JSON.stringify({
+            reason
+          })
         }
       );
+
+
+    const data =
+      await response.json()
+        .catch(() => ({}));
 
 
     if (
@@ -934,15 +1170,16 @@ async function rejectVendor(id) {
       response.status === 403
     ) {
 
+      alert(
+        data.message ||
+        "Administrator access denied."
+      );
+
       redirectToLogin();
 
       return;
 
     }
-
-
-    const data =
-      await response.json();
 
 
     if (!response.ok) {
@@ -990,7 +1227,9 @@ async function rejectVendor(id) {
 function getImageURL(path) {
 
   if (!path) {
+
     return "placeholder.png";
+
   }
 
 
@@ -999,12 +1238,26 @@ function getImageURL(path) {
       "http"
     )
   ) {
+
     return path;
+
+  }
+
+
+  if (
+    String(path).startsWith("/")
+  ) {
+
+    return (
+      "https://charcoal-marketplace-2.onrender.com" +
+      path
+    );
+
   }
 
 
   return (
-    "https://charcoal-marketplace-2.onrender.com" +
+    "https://charcoal-marketplace-2.onrender.com/" +
     path
   );
 
@@ -1017,7 +1270,9 @@ function getImageURL(path) {
 
 function escapeHTML(value) {
 
-  return String(value || "")
+  return String(
+    value ?? ""
+  )
 
     .replaceAll(
       "&",
