@@ -1,164 +1,125 @@
-const API = "https://charcoal-marketplace-2.onrender.com/api";
+const API="https://charcoal-marketplace-2.onrender.com/api";
+const token=localStorage.getItem("token");
 
-/* =========================
-   AUTH CHECK (SAFE)
-========================= */
-let token = localStorage.getItem("token"); // 🔥 FIXED: unified token system
-
-if (!token) {
-  window.location.href = "vendor-login.html";
+if(!token){
+  window.location.replace("vendor-login.html");
 }
 
-/* =========================
-   HEADERS
-========================= */
-function getHeaders() {
-  return {
-    Authorization: `Bearer ${token}`
-  };
+function headers(){
+  return {Authorization:`Bearer ${token}`};
 }
 
-/* =========================
-   FORM SUBMIT
-========================= */
-const form = document.getElementById("productForm");
+function logout(){
+  localStorage.removeItem("token");
+  localStorage.removeItem("vendorToken");
+  localStorage.removeItem("user");
+  window.location.href="vendor-login.html";
+}
 
-if (form) {
-  form.addEventListener("submit", async (e) => {
+function goHome(){window.location.href="home.html";}
+function goVendor(){window.location.href="vendor.html";}
+function goProfile(){window.location.href="profile.html";}
+
+async function ensureVendor(){
+  try{
+    const res=await fetch(`${API}/orders/vendor`,{headers:headers()});
+    if(res.status===401||res.status===403){
+      logout();
+      return false;
+    }
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+const form=document.getElementById("productForm");
+if(form){
+  form.addEventListener("submit",async e=>{
     e.preventDefault();
+    const btn=document.getElementById("submitBtn");
+    btn.disabled=true;
+    btn.textContent="Uploading...";
 
-    const btn = e.target.querySelector("button");
+    try{
+      const fd=new FormData();
+      fd.append("name",document.getElementById("name").value.trim());
+      fd.append("price_pi",document.getElementById("price_pi").value);
+      fd.append("location",document.getElementById("location").value.trim());
+      fd.append("stock",document.getElementById("stock").value);
+      fd.append("image",document.getElementById("image").files[0]);
 
-    if (btn) {
-      btn.disabled = true;
-      btn.innerText = "Uploading...";
-    }
-
-    const name = document.getElementById("name")?.value?.trim();
-    const price_pi = document.getElementById("price_pi")?.value;
-    const location = document.getElementById("location")?.value?.trim();
-    const stock = document.getElementById("stock")?.value;
-    const image = document.getElementById("image")?.files?.[0];
-
-    if (!name || !price_pi || !location || !stock || !image) {
-      alert("Please fill all fields");
-
-      if (btn) {
-        btn.disabled = false;
-        btn.innerText = "Add Product";
-      }
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("price_pi", price_pi);
-    formData.append("location", location);
-    formData.append("stock", stock);
-    formData.append("image", image);
-
-    try {
-      const res = await fetch(`${API}/products`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: formData
+      const res=await fetch(`${API}/products`,{
+        method:"POST",
+        headers:headers(),
+        body:fd
       });
+      const data=await res.json().catch(()=>({}));
 
-      const data = await res.json().catch(() => ({}));
-
-      if (res.status === 401 || res.status === 403) {
-        localStorage.removeItem("token");
-        window.location.href = "vendor-login.html";
+      if(res.status===401||res.status===403){
+        alert(data.message||"Vendor access denied");
+        logout();
         return;
       }
+      if(!res.ok) throw new Error(data.message||"Upload failed");
 
-      if (!res.ok) {
-        alert(data.message || "Upload failed");
-        return;
-      }
-
-      alert("Product added successfully ✔");
+      alert(data.message||"Product submitted");
       form.reset();
       loadMyProducts();
-
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Server error while uploading product");
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerText = "Add Product";
-      }
+    }catch(error){
+      console.error(error);
+      alert(error.message||"Server error");
+    }finally{
+      btn.disabled=false;
+      btn.textContent="Add Product";
     }
   });
 }
 
-/* =========================
-   LOAD MY PRODUCTS
-========================= */
-async function loadMyProducts() {
-  const container = document.getElementById("myProducts");
-  if (!container) return;
+async function loadMyProducts(){
+  const container=document.getElementById("myProducts");
+  if(!container)return;
 
-  try {
-    container.innerHTML = "<p>Loading...</p>";
-
-    const res = await fetch(`${API}/products/my`, {
-      headers: getHeaders()
-    });
-
-    if (res.status === 401 || res.status === 403) {
-      localStorage.removeItem("token");
-      window.location.href = "vendor-login.html";
+  try{
+    const res=await fetch(`${API}/products/my`,{headers:headers()});
+    const data=await res.json().catch(()=>[]);
+    if(res.status===401||res.status===403){
+      logout();
       return;
     }
-
-    const data = await res.json().catch(() => []);
-
-    if (!Array.isArray(data) || data.length === 0) {
-      container.innerHTML = "<p>No products yet</p>";
+    if(!Array.isArray(data)||!data.length){
+      container.innerHTML="<p>No products yet.</p>";
       return;
     }
-
-    container.innerHTML = data.map(p => `
+    container.innerHTML=data.map(p=>`
       <div class="card">
-        <img src="${getImageURL(p.image)}" />
+        <img src="${getImageURL(p.image)}" alt="${escapeHTML(p.name)}">
         <h3>${escapeHTML(p.name)}</h3>
         <p>${escapeHTML(p.location)}</p>
-        <h4>${p.price_pi} Pi</h4>
+        <h4>${Number(p.price_pi).toFixed(2)} Pi</h4>
         <p>Stock: ${p.stock}</p>
-        <p>Status: ${p.status}</p>
-      </div>
-    `).join("");
-
-  } catch (err) {
-    console.error("Load error:", err);
-    container.innerHTML = "<p>Failed to load products</p>";
+        <p>Status: ${escapeHTML(p.status)}</p>
+      </div>`).join("");
+  }catch(error){
+    console.error(error);
+    container.innerHTML="<p>Failed to load products.</p>";
   }
 }
 
-/* =========================
-   HELPERS (PRODUCTION SAFE)
-========================= */
-function getImageURL(path) {
-  if (!path) return "placeholder.png";
-  if (path.startsWith("http")) return path;
-
-  return "https://charcoal-marketplace-2.onrender.com" + path;
+function getImageURL(image){
+  if(!image)return "";
+  if(image.startsWith("http"))return image;
+  return "https://charcoal-marketplace-2.onrender.com"+image;
 }
 
-function escapeHTML(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function escapeHTML(value){
+  return String(value??"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
 }
 
-/* =========================
-   INIT (SAFE)
-========================= */
-document.addEventListener("DOMContentLoaded", () => {
-  loadMyProducts();
+document.addEventListener("DOMContentLoaded",async()=>{
+  if(await ensureVendor()) loadMyProducts();
 });

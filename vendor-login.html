@@ -3,50 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Vendor Login</title>
-
+<title>Vendor Portal | Charcoal Marketplace</title>
 <link rel="stylesheet" href="vendor-login.css">
-
-<!-- Pi SDK (MUST stay here) -->
 <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-
 </head>
-
 <body>
-
 <div class="login-container">
+  <h2>🏪 Vendor Portal</h2>
+  <p>Sell your charcoal products through Pi Network.</p>
 
-  <h2>Vendor Login</h2>
+  <section id="loginSection">
+    <button id="piLoginBtn" type="button" onclick="loginWithPi()">π Continue with Pi</button>
+    <p id="loginMsg"></p>
+    <hr>
+    <p>Already an approved vendor?</p>
+    <form id="emailLoginForm">
+      <input id="email" type="email" placeholder="Email" autocomplete="email">
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+      <button id="loginBtn" type="submit">Email Login</button>
+    </form>
+  </section>
 
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
+  <section id="registerSection" class="hidden">
+    <h3>Become a Vendor</h3>
+    <p>Your Pi account will be verified and your application will be reviewed by an Admin.</p>
 
-  <button id="loginBtn" onclick="loginVendor()">Login</button>
+    <form id="vendorForm">
+      <input id="vendorName" required placeholder="Your full name">
+      <input id="businessName" required placeholder="Business name">
+      <input id="businessPhone" placeholder="Phone number">
+      <input id="businessLocation" required placeholder="Business location">
+      <textarea id="businessDescription" placeholder="Tell us about your charcoal business"></textarea>
+      <button id="registerBtn" type="submit">Submit Vendor Application</button>
+    </form>
+    <p id="registerMsg"></p>
+    <button type="button" class="secondary" onclick="showLogin()">Back to Vendor Login</button>
+  </section>
 
-  <hr>
-
-  <button id="piLoginBtn" onclick="loginWithPi()">
-    Login with Pi Network
-  </button>
-
-  <p id="msg"></p>
-
+  <div id="registerPrompt">
+    <hr>
+    <p>Don't have a vendor account?</p>
+    <button type="button" onclick="showRegister()">Register as Vendor</button>
+  </div>
 </div>
-
-  <!-- IMPORTANT: external JS only -->
-<script src="vendor-login.js"></scri>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  if (window.Pi) {
-    Pi.init({ version: "2.0" });
-    console.log("Pi SDK ready");
-  } else {
-    console.log("Pi SDK NOT loaded");
-  }
-});
-  </script>
-
+<script src="vendor-login.js"></script>
 </body>
 </html>
