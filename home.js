@@ -171,11 +171,12 @@ function renderProducts(products) {
         <div class="card">
 
           <img
-            src="${imageURL}"
-            alt="${safeName}"
-            loading="lazy"
-          />
-
+  src="${imageURL}"
+  alt="${safeName}"
+  loading="lazy"
+  onerror="this.onerror=null; this.src='placeholder.png';"
+/>
+          
           <h3>${safeName}</h3>
 
           <p>${safeLocation}</p>
@@ -747,36 +748,43 @@ function setupActiveNavigation() {
 }
 
 
-/* =========================================================
+ /* =========================================================
    IMAGE URL
 ========================================================= */
 
-function getImageURL(path) {
+function getImageURL(imagePath) {
 
-  if (!path) {
-
+  if (!imagePath) {
     return "placeholder.png";
-
   }
 
+  const value =
+    String(imagePath).trim();
 
+  /* Already a complete URL */
   if (
-    String(path)
-      .startsWith("http")
+    value.startsWith("http://") ||
+    value.startsWith("https://")
   ) {
-
-    return path;
-
+    return value;
   }
 
+  const BASE_URL =
+    "https://charcoal-marketplace-2.onrender.com";
 
-  return (
-    "https://charcoal-marketplace-2.onrender.com" +
-    path
-  );
+  /* Remove accidental leading/trailing slashes */
+  const cleanPath =
+    value.replace(/^\/+/, "");
 
+  /* Make sure uploads path is correct */
+  if (
+    cleanPath.startsWith("uploads/")
+  ) {
+    return `${BASE_URL}/${cleanPath}`;
+  }
+
+  return `${BASE_URL}/uploads/${cleanPath}`;
 }
-
 
 /* =========================================================
    HTML ESCAPE
